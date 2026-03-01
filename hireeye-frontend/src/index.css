@@ -1,1 +1,12 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}
+
+/* Make the scrollbar sleek and invisible */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
