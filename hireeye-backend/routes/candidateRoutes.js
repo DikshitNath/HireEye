@@ -1,9 +1,9 @@
 const express = require('express');
 const Candidate = require('../models/Candidate');
-const { GoogleGenAI } = require("@google/genai"); // Fixed import name
 const nodemailer = require('nodemailer');
 
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
+// ✨ Import your new Groq utility
+const { generateJson } = require('../utils/groqClient');
 
 const router = express.Router();
 
@@ -11,7 +11,6 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { userId } = req.query;
-    // ✨ ADD .populate('jobId') here!
     const candidates = await Candidate.find({ userId })
       .populate('jobId') 
       .sort({ aiCvScore: -1 });
@@ -52,44 +51,54 @@ router.post('/:id/interview', async (req, res) => {
     const { transcript } = req.body;
     const candidateId = req.params.id;
 
+    // ✨ 1. THE SECURITY LOCK: Fetch and verify BEFORE processing
+    const candidate = await Candidate.findById(candidateId);
+    
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (candidate.interviewStatus === 'Completed') {
+      // 🛑 Reject the request if they try to bypass the UI and submit again
+      return res.status(403).json({ error: 'This interview is already completed and locked.' });
+    }
+
+    // ✨ 2. Format Transcript for AI Grading
     const conversationText = transcript.map(msg => 
       `${msg.sender === 'ai' ? 'Interviewer' : 'Candidate'}: ${msg.text}`
     ).join('\n');
 
-    const prompt = `
-      You are a Senior Technical Recruiter. Evaluate this interview transcript:
+    // ✨ 3. Define strict prompts for Groq
+    const systemPrompt = "You are a Senior Technical Recruiter. You must evaluate the candidate interview strictly and always respond in valid JSON format.";
+    const userPrompt = `
+      Evaluate this interview transcript:
       
+      TRANSCRIPT:
       ${conversationText}
       
-      Respond STRICTLY in JSON:
+      OUTPUT STRICTLY IN THIS JSON FORMAT:
       {
         "score": number (0-100),
         "feedback": "2-sentence high-density analysis"
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Note: Using 1.5-flash as 2.5 is not current
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
+    // ✨ 4. Call your central Groq utility
+    const evaluation = await generateJson(systemPrompt, userPrompt);
+
+    // ✨ 5. Save EVERYTHING and lock the account
+    candidate.transcript = transcript; // Save the raw chat log for your recruiter dashboard
+    candidate.interviewScore = evaluation.score;
+    candidate.interviewFeedback = evaluation.feedback;
+    candidate.interviewStatus = 'Completed'; // 🔒 This locks the link forever
+
+    await candidate.save();
+
+    res.status(200).json({ 
+      message: "Interview securely graded and locked.",
+      score: evaluation.score 
     });
 
-    const aiText = response.text;
-
-    const cleanText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const evaluation = JSON.parse(cleanText);
-
-    const updatedCandidate = await Candidate.findByIdAndUpdate(
-      candidateId, 
-      { 
-        interviewScore: evaluation.score,
-        interviewFeedback: evaluation.feedback,
-        interviewStatus: 'Completed'
-      },
-      { new: true }
-    );
-
-    res.json(updatedCandidate);
   } catch (error) {
     console.error("Interview grading error:", error);
     res.status(500).json({ error: "Failed to grade interview" });
@@ -146,8 +155,11 @@ router.post('/:id/send-interview', async (req, res) => {
 // GET: Fetch single candidate (For the Interview Room)
 router.get('/:id', async (req, res) => {
   try {
-    const candidate = await Candidate.findById(req.params.id);
+    // ✨ THE FIX: You MUST .populate('jobId') here!
+    const candidate = await Candidate.findById(req.params.id).populate('jobId');
+    
     if (!candidate) return res.status(404).json({ error: 'Record not found' });
+    
     res.status(200).json(candidate);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch record' });

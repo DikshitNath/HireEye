@@ -1,20 +1,20 @@
 const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const { GoogleGenAI } = require('@google/genai');
 
 // Import our MongoDB Schemas
 const Candidate = require('../models/Candidate');
 const Job = require('../models/Job');
 
+// ✨ Import your new Groq utility
+const { generateJson } = require('../utils/groqClient');
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 router.post('/upload', upload.single('resume'), async (req, res) => {
   try {
-    // ✨ EXTRACTION: Capture the userId sent from the frontend
-    const { userId, jobId } = req.body; // ✨ Extract both IDs from the request
+    const { userId, jobId } = req.body;
 
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (!userId) return res.status(400).json({ error: 'User ID is required' });
@@ -26,21 +26,16 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       return res.status(404).json({ error: 'Selected Job Protocol not found' });
     }
 
-    /// 2. Extract Text from PDF
+    // 2. Extract Text from PDF
     const pdfData = await pdfParse(req.file.buffer);
     const resumeText = pdfData.text;
 
-    // 2. Fetch actual job
-    const activeJob = await Job.findById(jobId);
-    if (!activeJob) return res.status(404).json({ error: "Job criteria not found" });
-
-    // 3. The Upgraded AI Prompt
-    const prompt = `
-      # ROLE
-      You are a Senior Technical Recruiter at a high-growth tech firm. Your task is to extract data and evaluate a candidate's resume with extreme precision.
-
+    // 3. The Upgraded Groq Prompts
+    const systemPrompt = `You are a Senior Technical Recruiter at a high-growth tech firm. Your task is to extract data and evaluate a candidate's resume with extreme precision. You must always respond in valid JSON format.`;
+    
+    const userPrompt = `
       # CONTEXT
-      Target Job Description: ${activeJob.title} - ${activeJob.description}
+      Target Job Description: ${selectedJob.title} - ${selectedJob.description}
       
       # DATA EXTRACTION RULES
       1. **Name**: Extract the full legal name.
@@ -58,7 +53,7 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       ${resumeText}
 
       # OUTPUT SPECIFICATION
-      Respond strictly in JSON.
+      Respond strictly in JSON:
       {
         "name": "string",
         "email": "string",
@@ -69,18 +64,12 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       }
     `;
 
-    // 4. Call the AI
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash', // Note: Using 1.5-flash as 2.5 is not current
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
+    // 4. Call the AI via Groq Utility (It handles the JSON parsing automatically!)
+    const aiResult = await generateJson(systemPrompt, userPrompt);
 
-      const aiResult = JSON.parse(response.text);
-
-    // 5. Save everything to MongoDB!
+    // 5. Save everything to MongoDB
     const newCandidate = new Candidate({
-      userId: userId, // ✨ THE FIX: Link the candidate to the specific recruiter
+      userId: userId, 
       jobId: selectedJob._id,
       name: aiResult.name || "Unknown Candidate",
       email: aiResult.email || "No email found",
@@ -88,7 +77,7 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       resumeText: resumeText,
       aiCvScore: aiResult.score,
       aiCvSummary: aiResult.summary,
-      skills: aiResult.skillsFound || [] // Ensure skills are saved if they are in your schema
+      skills: aiResult.skillsFound || [] 
     });
 
     await newCandidate.save();

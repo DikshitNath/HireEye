@@ -1,13 +1,15 @@
 const express = require('express');
 const { Octokit } = require('@octokit/rest');
-const { GoogleGenAI } = require('@google/genai');
 const Candidate = require('../models/Candidate');
+const Job = require('../models/Job');
+
+// ✨ Import your new Groq utility
+const { generateJson } = require('../utils/groqClient');
 
 const router = express.Router();
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// POST route to evaluate a GitHub project for a specific candidate
+// POST route to evaluate a single GitHub project
 router.post('/evaluate/:candidateId', async (req, res) => {
   try {
     const { githubUrl } = req.body;
@@ -15,7 +17,7 @@ router.post('/evaluate/:candidateId', async (req, res) => {
 
     if (!githubUrl) return res.status(400).json({ error: "GitHub URL is required" });
 
-    // 1. Extract owner and repo from the URL (e.g., https://github.com/owner/repo)
+    // 1. Extract owner and repo from the URL
     const urlParts = githubUrl.replace('https://github.com/', '').split('/');
     const owner = urlParts[0];
     const repo = urlParts[1];
@@ -26,7 +28,6 @@ router.post('/evaluate/:candidateId', async (req, res) => {
     const repoData = await octokit.rest.repos.get({ owner, repo });
     const languagesData = await octokit.rest.repos.listLanguages({ owner, repo });
 
-    // Fetch and decode the README file
     let readmeText = "No README provided.";
     try {
       const readmeData = await octokit.rest.repos.getReadme({ owner, repo });
@@ -35,32 +36,28 @@ router.post('/evaluate/:candidateId', async (req, res) => {
       console.log("No README found for this repo.");
     }
 
-    // 3. The Senior Developer AI Prompt
-    const prompt = `
-      You are a Senior Technical Lead reviewing a candidate's GitHub project.
-      
+    // 3. The Groq Prompts
+    const systemPrompt = "You are a Senior Technical Lead reviewing a candidate's GitHub project. You must always respond in valid JSON format.";
+    
+    const userPrompt = `
       Project Details:
       - Name: ${repoData.data.name}
       - Description: ${repoData.data.description || 'None'}
       - Primary Languages/Stack: ${Object.keys(languagesData.data).join(', ')}
       
       README Content:
-      ${readmeText.substring(0, 3000)} // Limit to 3000 chars to save tokens
+      ${readmeText.substring(0, 3000)}
       
       Analyze this project. Respond strictly in JSON format with the following keys:
-      - "score": A number from 1 to 100 based on complexity, documentation, and apparent effort.
-      - "analysis": A 2-3 sentence summary of your technical thoughts on this project.
-      - "isTutorialClone": Boolean (true/false) indicating if this looks like a basic, generic tutorial project (like a simple to-do app or basic weather app).
+      {
+        "score": number (1 to 100 based on complexity, documentation, and apparent effort),
+        "analysis": "A 2-3 sentence summary of your technical thoughts on this project",
+        "isTutorialClone": boolean (true/false indicating if this looks like a basic, generic tutorial project)
+      }
     `;
 
-    // 4. Call Gemini
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
-
-    const aiResult = JSON.parse(response.text);
+    // 4. Call Groq Utility
+    const aiResult = await generateJson(systemPrompt, userPrompt);
 
     // 5. Update the Candidate in MongoDB
     const updatedCandidate = await Candidate.findByIdAndUpdate(
@@ -69,7 +66,6 @@ router.post('/evaluate/:candidateId', async (req, res) => {
         githubUrl: githubUrl,
         aiProjectScore: aiResult.score,
         aiProjectAnalysis: aiResult.analysis
-        // You can add a field for 'isTutorialClone' in your schema later if you want to store it!
       },
       { new: true }
     );
@@ -94,9 +90,7 @@ router.post('/evaluate-profile/:candidateId', async (req, res) => {
       return res.status(400).json({ error: "No GitHub URL found for this candidate." });
     }
 
-    // ✨ NEW: Fetch the Job criteria linked to this candidate
-    // This ensures the GitHub analysis is biased toward your specific requirements
-    const Job = require('../models/Job');
+    // Fetch the Job criteria linked to this candidate
     const targetJob = await Job.findById(candidate.jobId);
     const jobCriteria = targetJob
       ? `Role: ${targetJob.title}. Requirements: ${targetJob.description}`
@@ -148,11 +142,10 @@ router.post('/evaluate-profile/:candidateId', async (req, res) => {
       `;
     }
 
-    // 3. The "Principal Engineer" AI Prompt - Job Context Aware
-    const prompt = `
-      # ROLE
-      You are an elite Principal Software Engineer. Evaluate a candidate's GitHub portfolio specifically against the following Job Description.
-      
+    // 3. The "Principal Engineer" Groq Prompts
+    const systemPrompt = "You are an elite Principal Software Engineer. Evaluate a candidate's GitHub portfolio specifically against the following Job Description. You must always respond in valid JSON format.";
+    
+    const userPrompt = `
       # TARGET JOB CRITERIA
       ${jobCriteria}
       
@@ -177,18 +170,10 @@ router.post('/evaluate-profile/:candidateId', async (req, res) => {
       }
     `;
 
-    // 4. Call AI (Ensure correct model naming for your SDK version)
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Note: Using 1.5-flash as 2.5 is not current
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    });
+    // 4. Call Groq Utility
+    const aiResult = await generateJson(systemPrompt, userPrompt);
 
-    const aiText = response.text;
-
-    const cleanText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const aiResult = JSON.parse(cleanText);
-
+    // 5. Save to DB
     candidate.aiProjectScore = aiResult.score;
     candidate.aiProjectAnalysis = aiResult.analysis;
     await candidate.save();
