@@ -123,7 +123,7 @@ router.post('/:id/send-interview', async (req, res) => {
     if (!candidate) return res.status(404).json({ error: "Candidate not found" });
     if (candidate.interviewStatus === 'Completed') return res.status(400).json({ error: "Interview already completed" });
 
-    const interviewLink = `http://localhost:5173/interview/${candidate._id}`;
+    const interviewLink = `${process.env.CLIENT_URL}/interview/${candidate._id}`;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
