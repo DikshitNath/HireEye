@@ -51,12 +51,12 @@ export default function Dashboard() {
         setCandidates(Array.isArray(data) ? data : []);
       } else {
         console.error("Backend rejected request:", data.error);
-        setCandidates([]); 
+        setCandidates([]);
       }
 
     } catch (error) {
       console.error('Failed to fetch candidates', error);
-      setCandidates([]); 
+      setCandidates([]);
     } finally {
       setLoading(false);
     }
@@ -65,19 +65,28 @@ export default function Dashboard() {
   const triggerAutoEvaluation = async (candidate) => {
     setEvaluatingIds((prev) => [...prev, candidate._id]);
     try {
-      const token = await getToken(); 
+      const token = await getToken();
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/evaluate-profile/${candidate._id}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         }
       });
 
       const data = await response.json();
+      // ✅ Corrected triggerAutoEvaluation update
       if (response.ok) {
-        setCandidates((prev) => prev.map((c) => (c._id === data.candidate._id ? data.candidate : c)));
-        setSelectedCandidate((prev) => prev?._id === data.candidate._id ? data.candidate : prev);
+        setCandidates((prev) => prev.map((c) =>
+          c._id === data.candidate._id
+            ? { ...c, ...data.candidate, jobId: c.jobId }
+            : c
+        ));
+        setSelectedCandidate((prev) =>
+          prev?._id === data.candidate._id
+            ? { ...prev, ...data.candidate, jobId: prev.jobId }
+            : prev
+        );
       } else {
         console.error("Auto-eval rejected by backend:", data.error);
       }
@@ -110,13 +119,13 @@ export default function Dashboard() {
 
   const updateStatus = async (status) => {
     try {
-      const token = await getToken(); 
+      const token = await getToken();
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${selectedCandidate._id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status })
       });
@@ -125,7 +134,11 @@ export default function Dashboard() {
 
       const updatedCandidate = await response.json();
       setSelectedCandidate(updatedCandidate);
-      setCandidates(prev => prev.map(c => c._id === updatedCandidate._id ? updatedCandidate : c));
+      setCandidates(prev => prev.map(c =>
+        c._id === updatedCandidate._id
+          ? { ...c, ...updatedCandidate, jobId: c.jobId } // Force keep the old jobId object
+          : c
+      ));
     } catch (error) {
       console.error("Status update error:", error);
       alert("Failed to update status");
@@ -137,12 +150,12 @@ export default function Dashboard() {
     if (!confirmDelete) return;
 
     try {
-      const token = await getToken(); 
+      const token = await getToken();
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${selectedCandidate._id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -160,19 +173,19 @@ export default function Dashboard() {
   const sendInterviewLink = async (candidateId, candidateEmail) => {
     try {
       alert(`Drafting email to ${candidateEmail}...`);
-      const token = await getToken(); 
+      const token = await getToken();
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${candidateId}/send-interview`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         }
       });
 
       const data = await response.json();
       if (response.ok) {
         alert('✅ Success: ' + data.message);
-        fetchCandidates(); 
+        fetchCandidates();
       } else {
         alert('❌ Error: ' + data.error);
       }
@@ -187,7 +200,7 @@ export default function Dashboard() {
     new Map(
       candidates
         .filter(c => c.jobId && c.jobId._id && typeof c.jobId.title === 'string')
-        .map(c => [c.jobId._id, c.jobId]) 
+        .map(c => [c.jobId._id, c.jobId])
     ).values()
   );
 
@@ -224,7 +237,7 @@ export default function Dashboard() {
               >
                 All_Records
               </button>
-              
+
               {/* ✨ THE FIX: Render pre-filtered unique jobs */}
               {uniqueJobs.map((job) => (
                 <button
@@ -280,7 +293,7 @@ export default function Dashboard() {
                       <span className="text-[8px] font-mono font-bold text-zinc-400 uppercase tracking-widest border border-zinc-200 dark:border-zinc-800 px-1 rounded flex-shrink-0">
                         {candidate.jobId?.title?.replace(/\s+/g, '_') || "GENERAL"}
                       </span>
-                      
+
                       {/* ✨ THE FIX: Left Sidebar Red Flag Badge */}
                       {candidate.proctoringStrikes > 0 && (
                         <span className="flex items-center gap-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-red-200 dark:border-red-800/50 flex-shrink-0">

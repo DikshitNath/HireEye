@@ -28,7 +28,7 @@ router.patch('/:id/status', async (req, res) => {
       req.params.id, 
       { status }, 
       { new: true }
-    );
+    ).populate('jobId');
     res.status(200).json(updatedCandidate);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update status' });
