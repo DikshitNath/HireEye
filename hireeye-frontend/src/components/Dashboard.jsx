@@ -243,7 +243,7 @@ export default function Dashboard() {
                 <button
                   key={job._id}
                   onClick={() => setFilterJobId(job._id)}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all ${filterJobId === job._id
+                  className={`cursor-pointer px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all ${filterJobId === job._id
                     ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
                     : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
@@ -523,7 +523,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => setShowTranscript(false)}
-                className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                className="p-2 cursor-pointer text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

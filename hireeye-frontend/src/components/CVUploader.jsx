@@ -255,13 +255,13 @@ export default function CVUploader() {
             <div className="flex gap-3 mt-10">
               <button
                 onClick={handleCreateJob}
-                className="flex-1 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-xl font-bold text-sm tracking-tight transition-all active:scale-95 shadow-lg"
+                className="cursor-pointer flex-1 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-xl font-bold text-sm tracking-tight transition-all active:scale-95 shadow-lg"
               >
                 Initialize Role
               </button>
               <button
                 onClick={() => setShowJobModal(false)}
-                className="px-6 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 py-4 rounded-xl font-bold text-sm"
+                className="cursor-pointer px-6 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 py-4 rounded-xl font-bold text-sm"
               >
                 Cancel
               </button>
