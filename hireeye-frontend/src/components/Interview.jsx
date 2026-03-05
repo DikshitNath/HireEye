@@ -194,7 +194,7 @@ export default function Interview() {
 
     // Step 2: Connect to Python AI
     setStatus('Connecting to AI...');
-    socketRef.current = new WebSocket(`import.meta.env.VITE_WS_URL/ws/interview-v2/${id}`);
+    socketRef.current = new WebSocket(`${import.meta.env.VITE_WS_URL}/ws/interview-v2/${id}`);
 
     socketRef.current.onopen = () => {
       setStatus('Live');

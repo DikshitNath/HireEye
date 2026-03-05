@@ -31,7 +31,7 @@ async def get_job_context(candidate_id: str):
     """Fetches real Job Protocol from Node.js."""
     try:
         async with httpx.AsyncClient() as http_client:
-            response = await http_client.get(f"http://localhost:5000/api/candidates/{candidate_id}")
+            response = await http_client.get(f"https://hireeye.onrender.com/api/candidates/{candidate_id}")
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, dict):
