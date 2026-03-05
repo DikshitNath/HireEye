@@ -1,6 +1,7 @@
 const express = require('express');
 const Candidate = require('../models/Candidate');
-const nodemailer = require('nodemailer');
+
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
 // ✨ Import your new Groq utility
 const { generateJson } = require('../utils/groqClient');
@@ -116,49 +117,47 @@ router.post('/:id/interview', async (req, res) => {
 });
 
 // POST: Send interview link
+
 router.post('/:id/send-interview', async (req, res) => {
   try {
     const candidate = await Candidate.findById(req.params.id);
-    
     if (!candidate) return res.status(404).json({ error: "Candidate not found" });
-    if (candidate.interviewStatus === 'Completed') return res.status(400).json({ error: "Interview already completed" });
 
     const interviewLink = `${process.env.CLIENT_URL}/interview/${candidate._id}`;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS 
-      }
-    });
+    // ✨ 1. Initialize Brevo API Client
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    let apiKey = apiInstance.authentications['apiKey'];
+    apiKey.apiKey = process.env.BREVO_API_KEY; // Add this to Render Env Vars
 
-    const mailOptions = {
-      from: '"HireEye AI" <no-reply@hireeye.com>',
-      to: candidate.email,
-      subject: 'Action Required: Technical Assessment for HireEye',
-      html: `
-        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fafafa; padding: 40px; color: #18181b;">
-          <h2 style="font-weight: 800; letter-spacing: -0.05em;">Hello ${candidate.name},</h2>
-          <p style="color: #71717a;">Your profile has advanced to the next stage. Please complete your AI Voice Interview below.</p>
+    // ✨ 2. Construct the Email
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.subject = "Action Required: Technical Assessment for HireEye";
+    sendSmtpEmail.sender = { "name": "HireEye AI", "email": "your-verified-email@gmail.com" };
+    sendSmtpEmail.to = [{ "email": candidate.email, "name": candidate.name }];
+    sendSmtpEmail.htmlContent = `
+        <div style="font-family: sans-serif; background-color: #fafafa; padding: 40px; color: #18181b;">
+          <h2>Hello ${candidate.name},</h2>
+          <p>Please complete your AI Voice Interview below.</p>
           <div style="margin: 32px 0;">
-            <a href="${interviewLink}" style="background-color: #18181b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px;">
+            <a href="${interviewLink}" style="background-color: #18181b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700;">
               Begin Assessment
             </a>
           </div>
-          <p style="color: #a1a1aa; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">Secure Session • HireEye Engineering</p>
+          <p style="color: #a1a1aa; font-size: 12px;">Secure Session • HireEye Engineering</p>
         </div>
-      `
-    };
+      `;
 
-    await transporter.sendMail(mailOptions);
+    // ✨ 3. Send via API (Not SMTP)
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+
     candidate.interviewStatus = 'Pending';
     await candidate.save();
 
-    res.status(200).json({ message: "Link dispatched", status: 'Pending' });
+    res.status(200).json({ message: "Link dispatched via API", status: 'Pending' });
   } catch (error) {
-    console.error("Email sending error:", error);
-    res.status(500).json({ error: "Failed to send email" });
+    console.error("Brevo API error:", error);
+    res.status(500).json({ error: "Failed to dispatch email via API" });
   }
 });
 
