@@ -15,7 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+aapp.use(cors({
+  origin: ['https://hire-eye.vercel.app', 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Database Connection

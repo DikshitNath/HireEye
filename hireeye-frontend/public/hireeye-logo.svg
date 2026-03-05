@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+
+  <!-- Terminal icon box - dark rounded square -->
+  <rect x="0" y="0" width="40" height="40" rx="7" ry="7" fill="#1c1c1e"/>
+
+  <!-- Terminal > chevron -->
+  <polyline points="10,15 19,20 10,25" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Cursor _ underscore -->
+  <line x1="21" y1="27" x2="30" y2="27" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+
+</svg>
