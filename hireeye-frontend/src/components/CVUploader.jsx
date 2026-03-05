@@ -116,7 +116,7 @@ export default function CVUploader() {
               <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-500">Target_Protocol</h3>
               <button
                 onClick={() => setShowJobModal(true)}
-                className="p-1.5 rounded-md bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-80 transition-all flex items-center gap-1 text-[10px] font-bold uppercase"
+                className="p-1.5 cursor-pointer rounded-md bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-80 transition-all flex items-center gap-1 text-[10px] font-bold uppercase"
               >
                 <Plus className="w-3 h-3" /> New Role
               </button>

@@ -213,7 +213,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Candidate Pipeline</h2>
         </div>
 
-        <button onClick={fetchCandidates} disabled={loading} className="flex items-center gap-2 bg-white dark:bg-[#111] px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-bold text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50">
+        <button onClick={fetchCandidates} disabled={loading} className="cursor-pointer flex items-center gap-2 bg-white dark:bg-[#111] px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-bold text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-50">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-zinc-900 dark:text-white' : 'text-zinc-500'}`} />
           Sync Data
         </button>
@@ -230,7 +230,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <button
                 onClick={() => setFilterJobId("all")}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all ${filterJobId === "all"
+                className={`cursor-pointer px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight transition-all ${filterJobId === "all"
                   ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
                   : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                   }`}
@@ -348,13 +348,13 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => updateStatus('Shortlisted')} className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold rounded shadow-sm transition-colors">
+                  <button onClick={() => updateStatus('Shortlisted')} className="cursor-pointer px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold rounded shadow-sm transition-colors">
                     Approve
                   </button>
-                  <button onClick={() => updateStatus('Rejected')} className="px-3 py-1.5 bg-white dark:bg-[#151515] border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-bold rounded transition-colors">
+                  <button onClick={() => updateStatus('Rejected')} className="cursor-pointer px-3 py-1.5 bg-white dark:bg-[#151515] border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-bold rounded transition-colors">
                     Reject
                   </button>
-                  <button onClick={deleteCandidate} className="px-3 py-1.5 bg-white dark:bg-[#151515] border border-zinc-200 dark:border-zinc-700 text-rose-600 dark:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-bold rounded transition-colors" title="Delete Candidate">
+                  <button onClick={deleteCandidate} className="px-3 py-1.5 cursor-pointer bg-white dark:bg-[#151515] border border-zinc-200 dark:border-zinc-700 text-rose-600 dark:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-bold rounded transition-colors" title="Delete Candidate">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -441,7 +441,7 @@ export default function Dashboard() {
                           value={githubUrl}
                           onChange={(e) => setManualGithubUrl(e.target.value)}
                         />
-                        <button onClick={handleManualEvaluation} disabled={!githubUrl} className="self-start bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-1.5 rounded text-xs font-bold disabled:opacity-50">
+                        <button onClick={handleManualEvaluation} disabled={!githubUrl} className="cursor-pointer self-start bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-1.5 rounded text-xs font-bold disabled:opacity-50">
                           Run Analysis
                         </button>
                       </div>
@@ -466,7 +466,7 @@ export default function Dashboard() {
                           {selectedCandidate.transcript && selectedCandidate.transcript.length > 0 && (
                             <button
                               onClick={() => setShowTranscript(true)}
-                              className="ml-2 flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded text-xs font-bold transition-colors"
+                              className="cursor-pointer ml-2 flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded text-xs font-bold transition-colors"
                             >
                               <MessageSquare className="w-3.5 h-3.5" /> View Transcript
                             </button>

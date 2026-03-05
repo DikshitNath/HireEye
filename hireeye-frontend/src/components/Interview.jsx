@@ -388,7 +388,7 @@ export default function Interview() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all">
+          <button onClick={() => setIsDark(!isDark)} className="p-2 cursor-pointer rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all">
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full shadow-sm">
@@ -409,7 +409,7 @@ export default function Interview() {
               <p className="text-zinc-500 dark:text-zinc-400 mb-10 text-sm font-medium leading-relaxed px-4">
                 AI-conducted technical interview. We use a Push-to-Talk system. Tap the microphone when you are ready to answer. Ensure your camera is clear.
               </p>
-              <button onClick={beginSession} className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-lg hover:opacity-90 transition-all active:scale-95 shadow-2xl">
+              <button onClick={beginSession} className="w-full cursor-pointer py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-lg hover:opacity-90 transition-all active:scale-95 shadow-2xl">
                 Begin Session
               </button>
             </div>
@@ -492,7 +492,7 @@ export default function Interview() {
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#FAFAFA] via-[#FAFAFA] to-transparent dark:from-[#0A0A0A] dark:via-[#0A0A0A] flex justify-end">
-                <button onClick={endSession} className="px-8 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold flex items-center gap-3 transition-all shadow-lg shadow-rose-500/20">
+                <button onClick={endSession} className="cursor-pointer px-8 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold flex items-center gap-3 transition-all shadow-lg shadow-rose-500/20">
                   <PhoneOff className="w-5 h-5" /> Terminate & Submit
                 </button>
               </div>

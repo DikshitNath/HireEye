@@ -30,7 +30,7 @@ function App() {
               <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0A] text-zinc-900 dark:text-zinc-100 py-10 selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors duration-300">
 
                 <header className="mb-10 max-w-7xl mx-auto flex justify-between items-center px-4 md:px-6">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
                     <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded flex items-center justify-center transition-colors">
                       <Terminal className="w-5 h-5 text-white dark:text-zinc-900" />
                     </div>
@@ -42,7 +42,7 @@ function App() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => setIsDark(!isDark)}
-                      className="p-2 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all duration-300"
+                      className="p-2 cursor-pointer rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all duration-300"
                     >
                       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                     </button>
