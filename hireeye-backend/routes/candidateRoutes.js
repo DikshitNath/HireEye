@@ -133,7 +133,7 @@ router.post('/:id/send-interview', async (req, res) => {
     // ✨ 2. Construct the Email
     let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     sendSmtpEmail.subject = "Action Required: Technical Assessment for HireEye";
-    sendSmtpEmail.sender = { "name": "HireEye AI", "email": "your-verified-email@gmail.com" };
+    sendSmtpEmail.sender = { "name": "HireEye AI", "email": "dikshitnath36@gmail.com" };
     sendSmtpEmail.to = [{ "email": candidate.email, "name": candidate.name }];
     sendSmtpEmail.htmlContent = `
         <div style="font-family: sans-serif; background-color: #fafafa; padding: 40px; color: #18181b;">
