@@ -59,7 +59,7 @@ export default function Interview() {
   useEffect(() => {
     const verifyLink = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/candidates/${id}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${id}`);
         const data = await response.json();
 
         if (data.jobId) {
@@ -194,7 +194,7 @@ export default function Interview() {
 
     // Step 2: Connect to Python AI
     setStatus('Connecting to AI...');
-    socketRef.current = new WebSocket(`ws://localhost:8000/ws/interview-v2/${id}`);
+    socketRef.current = new WebSocket(`import.meta.env.VITE_WS_URL/ws/interview-v2/${id}`);
 
     socketRef.current.onopen = () => {
       setStatus('Live');
@@ -292,7 +292,7 @@ export default function Interview() {
       const token = await getToken();
       setStatus('Finalizing Assessment...');
 
-      const response = await fetch(`http://localhost:5000/api/candidates/${id}/interview`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${id}/interview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

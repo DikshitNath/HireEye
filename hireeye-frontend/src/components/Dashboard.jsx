@@ -39,7 +39,7 @@ export default function Dashboard() {
     try {
       const token = await getToken();
 
-      const response = await fetch(`http://localhost:5000/api/candidates?userId=${userId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates?userId=${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -67,7 +67,7 @@ export default function Dashboard() {
     try {
       const token = await getToken(); 
 
-      const response = await fetch(`http://localhost:5000/api/github/evaluate-profile/${candidate._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/evaluate-profile/${candidate._id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}` 
@@ -92,7 +92,7 @@ export default function Dashboard() {
     if (!githubUrl || !selectedCandidate) return;
     setEvaluatingIds((prev) => [...prev, selectedCandidate._id]);
     try {
-      const response = await fetch(`http://localhost:5000/api/github/evaluate/${selectedCandidate._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/github/evaluate/${selectedCandidate._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ githubUrl })
@@ -112,7 +112,7 @@ export default function Dashboard() {
     try {
       const token = await getToken(); 
 
-      const response = await fetch(`http://localhost:5000/api/candidates/${selectedCandidate._id}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${selectedCandidate._id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ export default function Dashboard() {
     try {
       const token = await getToken(); 
 
-      const response = await fetch(`http://localhost:5000/api/candidates/${selectedCandidate._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${selectedCandidate._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}` 
@@ -162,7 +162,7 @@ export default function Dashboard() {
       alert(`Drafting email to ${candidateEmail}...`);
       const token = await getToken(); 
 
-      const response = await fetch(`http://localhost:5000/api/candidates/${candidateId}/send-interview`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/candidates/${candidateId}/send-interview`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}` 

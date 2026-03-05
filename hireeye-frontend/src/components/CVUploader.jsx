@@ -21,7 +21,7 @@ export default function CVUploader() {
       try {
         const token = await getToken(); // ✨ Get the token
 
-        const response = await fetch(`http://localhost:5000/api/jobs?userId=${userId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/jobs?userId=${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}` // ✨ Attach the token
           }
@@ -48,7 +48,7 @@ export default function CVUploader() {
     try {
       const token = await getToken(); // ✨ 1. Grab the secure token
 
-      const response = await fetch('http://localhost:5000/api/jobs', {
+      const response = await fetch('${import.meta.env.VITE_API_URL}/api/jobs', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ export default function CVUploader() {
     formData.append('jobId', selectedJobId); // ✨ Pass the selected job ID
 
     try {
-      const response = await fetch('http://localhost:5000/api/cv/upload', {
+      const response = await fetch('${import.meta.env.VITE_API_URL}/api/cv/upload', {
         method: 'POST',
         body: formData,
       });
