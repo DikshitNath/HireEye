@@ -11,7 +11,7 @@ export default function Interview() {
   // 🎛️ System State
   const [isStarted, setIsStarted] = useState(false);
   const [status, setStatus] = useState('Initializing Protocol...');
-  const [isValidating, setIsValidating] = useState(false); // Set to true if you have a loader
+  const [isValidating, setIsValidating] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [jobData, setJobData] = useState(null);
@@ -20,7 +20,7 @@ export default function Interview() {
   // 🗣️ Voice & UI Lock State
   const [isRecording, setIsRecording] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false); // Locks UI while waiting for Python
+  const [isProcessing, setIsProcessing] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState([]);
 
   // 🧠 Hardware Refs
@@ -29,9 +29,15 @@ export default function Interview() {
   const audioChunksRef = useRef([]);
   const synthRef = useRef(window.speechSynthesis);
   const chatScrollRef = useRef(null);
-  const transcriptRef = useRef([]); // ✨ Guaranteed latest data for endSession
+  const transcriptRef = useRef([]);
 
-  // Sync state with Ref to prevent "No Data" bug
+  // 🎥 Video Proctoring Refs
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const proctorIntervalRef = useRef(null);
+  const streamRef = useRef(null); // Keep track of stream to turn off camera later
+
+  // Sync state with Ref
   useEffect(() => {
     transcriptRef.current = liveTranscript;
   }, [liveTranscript]);
@@ -49,7 +55,7 @@ export default function Interview() {
     }
   }, [liveTranscript]);
 
-  // 🔐 Link Verification
+  // 🔐 Link Verification & Cleanup
   useEffect(() => {
     const verifyLink = async () => {
       try {
@@ -64,33 +70,63 @@ export default function Interview() {
         }
 
         if (data.interviewStatus === 'Completed') setAccessDenied(true);
-      } catch (error) { 
-        console.error("Link verification failed", error); 
+      } catch (error) {
+        console.error("Link verification failed", error);
       } finally {
-        // ✨ THE FIX: Turn off the loader whether it succeeds or fails
-        setIsValidating(false); 
+        setIsValidating(false);
       }
     };
     verifyLink();
-    
+
+    // Cleanup on unmount
     return () => {
       if (synthRef.current) synthRef.current.cancel();
       if (socketRef.current) socketRef.current.close();
+      if (proctorIntervalRef.current) clearInterval(proctorIntervalRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop()); // Turn off camera light
     }
   }, [id]);
 
-  // 🎤 Setup Media Recorder
-  const setupAudioHardware = async () => {
+  // 🎥 1. Setup Hardware (With Audio Fallback & Stream Separation)
+  const setupHardware = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }
-      });
+      let stream;
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
+      // Step A: Try to get BOTH Video and Audio
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: { width: 640, height: 480, facingMode: "user" }
+        });
+      } catch (initialErr) {
+        // Step B: Fallback to AUDIO ONLY if no camera is found
+        if (initialErr.name === 'NotFoundError') {
+          console.warn("No camera found. Falling back to audio-only mode.");
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true }
+          });
+        } else {
+          throw initialErr; // Throw permission errors to the main catch block
+        }
+      }
 
-      const recorder = new MediaRecorder(stream, { mimeType });
+      streamRef.current = stream;
+
+      // ✨ DEFINE hasVideo HERE
+      const hasVideo = stream.getVideoTracks().length > 0;
+
+      // Attach to UI only if video exists
+      if (hasVideo && videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      // ✨ SEPARATE AUDIO FOR RECORDER
+      const audioTrack = stream.getAudioTracks()[0];
+      const audioOnlyStream = new MediaStream([audioTrack]);
+
+      // Setup Audio Recording using the isolated audio stream
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const recorder = new MediaRecorder(audioOnlyStream, { mimeType });
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -111,20 +147,56 @@ export default function Interview() {
       };
 
       mediaRecorderRef.current = recorder;
+
+      // Start Vision Proctoring Loop ONLY if camera exists
+      if (hasVideo) {
+        proctorIntervalRef.current = setInterval(() => {
+          if (videoRef.current && canvasRef.current && socketRef.current?.readyState === WebSocket.OPEN) {
+            const context = canvasRef.current.getContext('2d');
+            context.drawImage(videoRef.current, 0, 0, 640, 480);
+            const base64Frame = canvasRef.current.toDataURL('image/jpeg', 0.5).split(',')[1];
+            socketRef.current.send(JSON.stringify({ type: 'vision_frame', data: base64Frame }));
+          }
+        }, 5000);
+      }
+
+      return true; // Hardware successfully loaded
+
     } catch (err) {
-      alert("Microphone access denied.");
+      console.error("HARDWARE ERROR DETAILED:", err.name, err.message);
+
+      if (err.name === 'NotAllowedError') {
+        alert("Error: Browser permissions are blocking access. Click the lock icon in your URL bar.");
+      } else if (err.name === 'NotReadableError') {
+        alert("Error: Your hardware is currently being used by another app (like Zoom). Please close it.");
+      } else {
+        alert(`Hardware Error: ${err.message}. Check console (F12).`);
+      }
+
+      return false; // Hardware failed
     }
   };
 
-  // 🚀 Start Session
-  const beginSession = () => {
+  // 🚀 2. Start Session (Hardware FIRST, then AI)
+  const beginSession = async () => {
     setIsStarted(true);
-    setStatus('Connecting...');
+    setStatus('Requesting Camera...');
 
+    // Step 1: Request Hardware First
+    const hardwareSuccess = await setupHardware();
+
+    // If they block the camera, kick them back to the start screen
+    if (!hardwareSuccess) {
+      setIsStarted(false);
+      setStatus('Ready');
+      return;
+    }
+
+    // Step 2: Connect to Python AI
+    setStatus('Connecting to AI...');
     socketRef.current = new WebSocket(`ws://localhost:8000/ws/interview-v2/${id}`);
 
     socketRef.current.onopen = () => {
-      setupAudioHardware();
       setStatus('Live');
     };
 
@@ -134,45 +206,31 @@ export default function Interview() {
       if (data.type === 'text') {
         const aiMessage = data.message;
         setLiveTranscript(prev => [...prev, { sender: 'ai', text: aiMessage }]);
-
-        // ✨ THE FIX: Unlock the UI the moment the AI replies
-        setIsProcessing(false); 
+        setIsProcessing(false);
         setStatus('Interviewer is speaking...');
 
-        // Check for the Final Keyword
         if (aiMessage.includes("FINISH_INTERVIEW")) {
           const cleanMessage = aiMessage.replace("FINISH_INTERVIEW", "").trim();
-
           speakText(cleanMessage, () => {
             setStatus('Submission in progress...');
-            setTimeout(() => {
-              endSession(); 
-            }, 5000); // ✨ 5s wait AFTER speaking
+            setTimeout(() => { endSession(); }, 5000);
           });
         } else {
           speakText(aiMessage, () => setStatus('Ready. Tap to Speak.'));
         }
       }
-
-      // Handle Whisper Transcriptions
       else if (data.type === 'transcription') {
         setLiveTranscript(prev => [...prev, { sender: 'candidate', text: data.message }]);
         setStatus('Interviewer is evaluating...');
-        setIsProcessing(true); // 🔒 Lock the mic while the AI "thinks"
+        setIsProcessing(true);
       }
-
-      // Handle Adaptive Auto-Submit
       else if (data.type === 'auto_submit') {
         setStatus('Interview Concluded.');
-        setTimeout(() => {
-          endSession();
-        }, 2000);
+        setTimeout(() => { endSession(); }, 2000);
       }
-
-      // Handle Errors
       else if (data.type === 'error') {
         setStatus('Ready');
-        setIsProcessing(false); // ✨ Unlock UI on error so they aren't stuck
+        setIsProcessing(false);
       }
     };
 
@@ -182,7 +240,7 @@ export default function Interview() {
   // 🔊 Setup Text-to-Speech
   const speakText = (text, callback) => {
     if (!synthRef.current) return;
-    synthRef.current.cancel(); // Stop current speech
+    synthRef.current.cancel();
     setIsAiSpeaking(true);
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -190,7 +248,7 @@ export default function Interview() {
 
     utterance.onend = () => {
       setIsAiSpeaking(false);
-      if (callback) callback(); 
+      if (callback) callback();
     };
 
     synthRef.current.speak(utterance);
@@ -198,31 +256,32 @@ export default function Interview() {
 
   // 👆 Handle Tap-to-Speak Button
   const toggleRecording = () => {
-    // 🔒 Prevent clicking if AI is processing or speaking
     if (isProcessing || isAiSpeaking || !mediaRecorderRef.current) return;
 
     if (!isRecording) {
-      // START
-      synthRef.current.cancel(); 
+      synthRef.current.cancel();
       audioChunksRef.current = [];
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setStatus('Recording... Tap to send.');
     } else {
-      // STOP & SEND
       setIsRecording(false);
-      setIsProcessing(true); // 🔒 Lock the button immediately
+      setIsProcessing(true);
       setStatus('Uploading audio...');
 
       setTimeout(() => {
         mediaRecorderRef.current.stop();
-      }, 400); // Buffer to catch the final word
+      }, 400);
     }
   };
 
   // 🛑 End Session & Submit
   const endSession = async () => {
-    const finalData = transcriptRef.current; // ✨ Always gets the latest transcript
+    // Turn off camera and interval when session ends
+    if (proctorIntervalRef.current) clearInterval(proctorIntervalRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+
+    const finalData = transcriptRef.current;
 
     if (finalData.length === 0) {
       console.warn("No data to record.");
@@ -243,7 +302,7 @@ export default function Interview() {
       });
 
       if (response.ok) {
-        setIsFinished(true); // Trigger the native Thank You screen
+        setIsFinished(true);
       } else {
         alert("Failed to save interview. Please contact support.");
       }
@@ -255,6 +314,7 @@ export default function Interview() {
   // --- RENDERERS ---
 
   if (isValidating) {
+
     return (
       <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0A] flex flex-col items-center justify-center p-6 text-center">
         <div className="flex flex-col items-center animate-in fade-in duration-500">
@@ -274,7 +334,7 @@ export default function Interview() {
       </div>
     );
   }
-  
+
   if (accessDenied) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0A] flex flex-col items-center justify-center p-6 text-center">
@@ -347,7 +407,7 @@ export default function Interview() {
               </div>
               <h2 className="text-4xl font-extrabold tracking-tight mb-4">Assessment</h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-10 text-sm font-medium leading-relaxed px-4">
-                AI-conducted technical interview. We use a Push-to-Talk system. Tap the microphone when you are ready to answer.
+                AI-conducted technical interview. We use a Push-to-Talk system. Tap the microphone when you are ready to answer. Ensure your camera is clear.
               </p>
               <button onClick={beginSession} className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-lg hover:opacity-90 transition-all active:scale-95 shadow-2xl">
                 Begin Session
@@ -358,13 +418,35 @@ export default function Interview() {
           <div className="w-full flex flex-col md:flex-row h-full">
 
             <div className="w-full md:w-1/3 border-r border-zinc-200 dark:border-zinc-900 bg-white/30 dark:bg-black/10 flex flex-col items-center justify-center p-8 relative">
-              <div className="relative mb-12">
-                <div className={`w-40 h-40 border rounded-full flex items-center justify-center relative z-10 shadow-inner transition-colors duration-500 ${isAiSpeaking ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'}`}>
-                  <Sparkles className={`w-12 h-12 ${isAiSpeaking ? 'text-emerald-500 animate-pulse' : 'text-zinc-300 dark:text-zinc-700'}`} />
+
+              {/* ✨ LIVE PROCTORING CAMERA FEED */}
+              <div className="relative mb-12 flex flex-col items-center justify-center w-full">
+                <div className={`relative w-48 h-48 rounded-full overflow-hidden border-4 shadow-inner transition-all duration-500 ${isAiSpeaking ? 'border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)]' : 'border-zinc-200 dark:border-zinc-800'}`}>
+                  {/* The video element mirrors the user's face */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover transform scale-x-[-1]"
+                  />
+
+                  {/* 'Proctored' Badge */}
+                  <div className="absolute top-4 left-0 right-0 flex justify-center">
+                    <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-[9px] font-bold text-white tracking-widest uppercase">Proctored</span>
+                    </div>
+                  </div>
+
+                  {/* AI Speaking Glow overlay */}
+                  {isAiSpeaking && (
+                    <div className="absolute inset-0 border-4 border-emerald-500 rounded-full animate-pulse pointer-events-none opacity-50"></div>
+                  )}
                 </div>
-                {isAiSpeaking && (
-                  <div className="absolute inset-0 w-40 h-40 bg-emerald-500 rounded-full animate-ping opacity-20"></div>
-                )}
+
+                {/* Hidden canvas to grab base64 frames */}
+                <canvas ref={canvasRef} width="640" height="480" className="hidden" />
               </div>
 
               {/* ✨ SMART LOCKED BUTTON */}

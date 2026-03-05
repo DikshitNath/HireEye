@@ -31,8 +31,8 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
     const resumeText = pdfData.text;
 
     // 3. The Upgraded Groq Prompts
-    const systemPrompt = `You are a Senior Technical Recruiter at a high-growth tech firm. Your task is to extract data and evaluate a candidate's resume with extreme precision. You must always respond in valid JSON format.`;
-    
+    const systemPrompt = `You are an elite, highly critical Senior Technical Recruiter. Your task is to extract data and evaluate a candidate's resume with extreme precision and ruthless filtering. You do not hand out free points for irrelevant experience. You must always respond in valid JSON format.`;
+
     const userPrompt = `
       # CONTEXT
       Target Job Description: ${selectedJob.title} - ${selectedJob.description}
@@ -41,12 +41,17 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       1. **Name**: Extract the full legal name.
       2. **Email**: Extract the primary contact email.
       3. **GitHub**: Find the GitHub profile URL. Sanitize it: remove trailing slashes or "mailto:" prefixes. If not found, return null.
-      4. **Skills**: Identify exactly 5-8 of the most relevant technical skills that overlap with the Job Description.
+      4. **Skills**: Identify exactly 5-8 of the candidate's skills that overlap with the Job Description. If there are NO overlapping skills, you MUST return an empty array [].
 
-      # SCORING RUBRIC (Total 100 points)
-      - **Technical Stack (40 pts)**: Direct match of languages, frameworks, and tools.
-      - **Experience Depth (30 pts)**: Seniority, project complexity, and years of active work.
-      - **Project Relevance (20 pts)**: Do their past projects mirror the JD requirements?
+      # 🛑 CRITICAL RELEVANCE GATE
+      Before scoring, compare the candidate's core profession to the Target Job Description. 
+      If the candidate's background is in a completely different industry or field (e.g., a Software Engineer applying for a Medical/Pharmacovigilance role, or vice versa), YOU MUST FAIL THEM. 
+      In cases of a total industry mismatch, their final score MUST NOT exceed 15/100, regardless of their seniority in their own field.
+
+      # STRICT SCORING RUBRIC (Total 100 points)
+      - **Domain & Skill Match (40 pts)**: Exact match of required industry skills, tools, and certifications. Give exactly 0 points if their skills are entirely unrelated to the JD.
+      - **Experience Depth (30 pts)**: Years of active work SPECIFICALLY in the target role's field. Irrelevant industry experience counts for 0 points.
+      - **Project Relevance (20 pts)**: Do their past projects solve problems in the target domain? Unrelated projects = 0 points.
       - **Communication (10 pts)**: Clarity of resume, formatting, and impact-driven bullet points.
 
       # RESUME TEXT
@@ -58,8 +63,8 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
         "name": "string",
         "email": "string",
         "githubUrl": "string or null",
-        "score": number,
-        "summary": "A 3-sentence, high-density professional analysis focusing on the 'Technical Stack' and 'Experience Depth' rubrics.",
+        "score": number (0-100. Remember the Relevance Gate: give < 15 for a wrong industry match),
+        "summary": "A 3-sentence, high-density professional analysis explaining EXACTLY why they received this score. If they are in the wrong industry, state it clearly in the first sentence.",
         "skillsFound": ["string"]
       }
     `;
@@ -69,7 +74,7 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
 
     // 5. Save everything to MongoDB
     const newCandidate = new Candidate({
-      userId: userId, 
+      userId: userId,
       jobId: selectedJob._id,
       name: aiResult.name || "Unknown Candidate",
       email: aiResult.email || "No email found",
@@ -77,7 +82,7 @@ router.post('/upload', upload.single('resume'), async (req, res) => {
       resumeText: resumeText,
       aiCvScore: aiResult.score,
       aiCvSummary: aiResult.summary,
-      skills: aiResult.skillsFound || [] 
+      skills: aiResult.skillsFound || []
     });
 
     await newCandidate.save();

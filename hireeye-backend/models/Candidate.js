@@ -32,6 +32,26 @@ const candidateSchema = new mongoose.Schema({
     default: 'Not Started' 
   },
 
+  proctoringStrikes: { 
+    type: Number, 
+    default: 0 
+  },
+  proctoringFlags: [{ 
+    type: String 
+  }],
+
+  transcript: [{
+    sender: { 
+      type: String, 
+      enum: ['ai', 'candidate'], 
+      required: true 
+    },
+    text: { 
+      type: String, 
+      required: true 
+    }
+  }],
+
   appliedAt: { type: Date, default: Date.now }
 });
 

@@ -4,7 +4,7 @@ import { UploadCloud, CheckCircle, Loader2, Sparkles, Plus, ChevronDown, Briefca
 import { useAuth } from '@clerk/clerk-react';
 
 export default function CVUploader() {
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -15,41 +15,59 @@ export default function CVUploader() {
   const [newJob, setNewJob] = useState({ title: '', description: '' });
 
   // 1. Fetch user-specific jobs
-  const fetchJobs = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const res = await fetch(`http://localhost:5000/api/jobs?userId=${userId}`);
-      const data = await res.json();
-      setJobs(data);
-      if (data.length > 0 && !selectedJobId) setSelectedJobId(data[0]._id);
-    } catch (e) {
-      console.error("Job fetch failed", e);
-    }
-  }, [userId, selectedJobId]);
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!userId) return;
+      try {
+        const token = await getToken(); // ✨ Get the token
 
-  useEffect(() => { fetchJobs(); }, [fetchJobs]);
+        const response = await fetch(`http://localhost:5000/api/jobs?userId=${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}` // ✨ Attach the token
+          }
+        });
 
+        const data = await response.json();
+        if (response.ok) {
+          setJobs(Array.isArray(data) ? data : []);
+        } else {
+          console.error("Failed to fetch jobs:", data);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      }
+    };
+
+    fetchJobs();
+  }, [userId, getToken]);
   // 2. Create Job Function
 
   const handleCreateJob = async () => {
     if (!newJob.title || !newJob.description) return;
 
     try {
+      const token = await getToken(); // ✨ 1. Grab the secure token
+
       const response = await fetch('http://localhost:5000/api/jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // ✨ 2. Attach it to the headers
+        },
         body: JSON.stringify({ ...newJob, userId })
       });
 
       if (response.ok) {
         const savedJob = await response.json();
         setJobs(prev => [savedJob, ...prev]);
-        setSelectedJobId(savedJob._id);
+        setSelectedJobId(savedJob._id); // Auto-selects the new job
         setShowJobModal(false);
         setNewJob({ title: '', description: '' });
+      } else {
+        console.error("Failed to save role: Unauthorized");
       }
     } catch (err) {
-      console.error("Failed to save role");
+      console.error("Failed to save role", err);
     }
   };
 
@@ -111,6 +129,9 @@ export default function CVUploader() {
                   onChange={(e) => setSelectedJobId(e.target.value)}
                   className="w-full appearance-none bg-zinc-50 dark:bg-[#151515] border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-zinc-400 transition-all cursor-pointer"
                 >
+                  {/* ✨ THE FIX: Default Placeholder Option */}
+                  <option value="" disabled>Select a Role Protocol...</option>
+
                   {jobs.map(job => (
                     <option key={job._id} value={job._id}>{job.title}</option>
                   ))}

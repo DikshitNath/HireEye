@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, ShieldCheck, Zap, Mic, Github, Terminal, Sun, Moon } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 
 export default function Home() {
   // 🌓 Theme State
@@ -29,7 +30,7 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-6">
-          {/* ✨ Theme Toggle Added Here */}
+          {/* ✨ Theme Toggle */}
           <button 
             onClick={() => setIsDark(!isDark)}
             className="p-2 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm"
@@ -37,7 +38,22 @@ export default function Home() {
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          <Link to="/dashboard" className="text-sm font-bold hover:text-zinc-500 transition-colors hidden sm:block">Sign In</Link>
+          {/* ✨ Conditional Auth UI */}
+          <SignedIn>
+            {/* Shows the Google Avatar and a dropdown menu when clicked */}
+            <div className="hidden sm:block">
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          </SignedIn>
+          
+          <SignedOut>
+            {/* Only shows if the user is NOT logged in */}
+            <Link to="/dashboard" className="text-sm font-bold hover:text-zinc-500 transition-colors hidden sm:block">
+              Sign In
+            </Link>
+          </SignedOut>
+
+          {/* Launch App Button (Always visible or you can wrap it in SignedIn too!) */}
           <Link to="/dashboard" className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:opacity-90 transition-all active:scale-95">
             Launch App
           </Link>

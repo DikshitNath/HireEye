@@ -143,8 +143,8 @@ router.post('/evaluate-profile/:candidateId', async (req, res) => {
     }
 
     // 3. The "Principal Engineer" Groq Prompts
-    const systemPrompt = "You are an elite Principal Software Engineer. Evaluate a candidate's GitHub portfolio specifically against the following Job Description. You must always respond in valid JSON format.";
-    
+    const systemPrompt = `You are an elite, merciless Principal Software Engineer evaluating a candidate's GitHub portfolio. You do not give "participation trophies" for clean code if the tech stack is completely wrong for the job. You must evaluate strictly and always respond in valid JSON format.`;
+        
     const userPrompt = `
       # TARGET JOB CRITERIA
       ${jobCriteria}
@@ -152,20 +152,27 @@ router.post('/evaluate-profile/:candidateId', async (req, res) => {
       # CANDIDATE REPOS (Top 3 Original)
       ${projectsContext}
       
-      # MISSION
-      Analyze if their actual code projects demonstrate the skills required for the TARGET JOB. 
-      - If the Job requires React/Node and they only have Python scripts, the score MUST reflect this mismatch.
-      - Differentiate between "Tutorial Clones" and "Custom Engineering".
-      
+      # 🛑 CRITICAL RELEVANCE GATE (Tech Stack Mismatch)
+      If the core languages or frameworks required by the Target Job are completely missing from their GitHub projects (e.g., Job requires React/Node, but they only have Python/Jupyter scripts), YOU MUST FAIL THEM. 
+      In the event of a total stack mismatch, their final score MUST NOT exceed 20/100, regardless of how good their unrelated code is.
+
+      # 🛑 THE "TUTORIAL CLONE" PENALTY
+      Look closely at the repo names and descriptions. If the projects are obvious beginner tutorials ("todo-app", "weather-app", "netflix-clone", "tic-tac-toe"), heavily penalize their System Complexity score. We are looking for Custom Engineering and real-world problem-solving.
+
+      # STRICT SCORING RUBRIC (Total 100 points)
+      - **Stack Alignment (40 pts)**: Do they write code in the languages we actually need? (Mismatch = 0 pts).
+      - **System Complexity (30 pts)**: Are they building production-level logic, APIs, and databases, or just basic frontend scripts? (Tutorials = Max 5 pts).
+      - **Engineering Rigor (30 pts)**: Code organization, clear READMEs, commits, and architecture quality.
+
       # OUTPUT SPECIFICATION
       Respond STRICTLY in JSON:
       {
-        "score": number (1-100),
+        "score": number (0-100. Remember the Relevance Gate: < 20 for a wrong tech stack),
         "analysis": [
-          "**Stack Alignment:** (Does their GitHub stack match the Job Description?)",
-          "**System Complexity:** (Are they building production-level logic or basic scripts?)",
-          "**Engineering Rigor:** (Code organization, documentation, and architecture quality.)",
-          "**Verdict:** (A final punchy summary on why they are or aren't a technical fit for THIS specific role.)"
+          "**Stack Alignment:** (Brutally honest assessment of whether their repo languages match the Job Description.)",
+          "**System Complexity:** (Call out if these are tutorial clones or actual custom software.)",
+          "**Engineering Rigor:** (Critique their architecture, documentation, and repo hygiene.)",
+          "**Verdict:** (A final punchy summary. If they failed the stack match, state 'Not a technical fit for this stack' immediately.)"
         ]
       }
     `;

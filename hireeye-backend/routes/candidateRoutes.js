@@ -51,7 +51,7 @@ router.post('/:id/interview', async (req, res) => {
     const { transcript } = req.body;
     const candidateId = req.params.id;
 
-    // ✨ 1. THE SECURITY LOCK: Fetch and verify BEFORE processing
+    // ✨ 1. THE SECURITY LOCK
     const candidate = await Candidate.findById(candidateId);
     
     if (!candidate) {
@@ -59,16 +59,21 @@ router.post('/:id/interview', async (req, res) => {
     }
 
     if (candidate.interviewStatus === 'Completed') {
-      // 🛑 Reject the request if they try to bypass the UI and submit again
       return res.status(403).json({ error: 'This interview is already completed and locked.' });
     }
 
-    // ✨ 2. Format Transcript for AI Grading
+    // ✨ 2. PROCTORING EXTRACTION (NEW)
+    // Scan the raw transcript for AI warnings before we format it
+    const flags = transcript
+      .filter(msg => msg.sender === 'ai' && msg.text.includes('Proctoring Warning:'))
+      .map(msg => msg.text.replace('Proctoring Warning:', '').trim());
+
+    // ✨ 3. Format Transcript for AI Grading
     const conversationText = transcript.map(msg => 
       `${msg.sender === 'ai' ? 'Interviewer' : 'Candidate'}: ${msg.text}`
     ).join('\n');
 
-    // ✨ 3. Define strict prompts for Groq
+    // ✨ 4. Define strict prompts for Groq
     const systemPrompt = "You are a Senior Technical Recruiter. You must evaluate the candidate interview strictly and always respond in valid JSON format.";
     const userPrompt = `
       Evaluate this interview transcript:
@@ -83,20 +88,25 @@ router.post('/:id/interview', async (req, res) => {
       }
     `;
 
-    // ✨ 4. Call your central Groq utility
+    // ✨ 5. Call your central Groq utility
     const evaluation = await generateJson(systemPrompt, userPrompt);
 
-    // ✨ 5. Save EVERYTHING and lock the account
-    candidate.transcript = transcript; // Save the raw chat log for your recruiter dashboard
+    // ✨ 6. Save EVERYTHING and lock the account
+    candidate.transcript = transcript; 
     candidate.interviewScore = evaluation.score;
     candidate.interviewFeedback = evaluation.feedback;
-    candidate.interviewStatus = 'Completed'; // 🔒 This locks the link forever
+    candidate.interviewStatus = 'Completed'; 
+    
+    // Bind the proctoring data to the database
+    candidate.proctoringStrikes = flags.length; 
+    candidate.proctoringFlags = flags;           
 
     await candidate.save();
 
     res.status(200).json({ 
       message: "Interview securely graded and locked.",
-      score: evaluation.score 
+      score: evaluation.score,
+      strikes: flags.length // Send this back just in case the frontend wants to know
     });
 
   } catch (error) {
